@@ -30,6 +30,9 @@ namespace yhs
 		chassis_info_fb_publisher_ = node_->create_publisher<yhs_can_interfaces::msg::ChassisInfoFb>("chassis_info_fb", 1);
 
 		odom_pub_ = node_->create_publisher<nav_msgs::msg::Odometry>("odom", 1);
+		ctrl_source_pub_ = node_->create_publisher<std_msgs::msg::Header>("ctrl_feedback_source", 10);
+		io_source_pub_ = node_->create_publisher<std_msgs::msg::Header>("io_feedback_source", 10);
+		bms_flag_source_pub_ = node_->create_publisher<std_msgs::msg::Header>("bms_flag_feedback_source", 10);
 	}
 
 	void CanControl::io_cmd_callback(const yhs_can_interfaces::msg::IoCmd::SharedPtr io_cmd_msg)
@@ -217,7 +220,10 @@ whether the can line is connected correctly, and whether the chassis is powered 
 			if (!wait_for_can_frame())
 				continue;
 
-			if (read(can_socket_, &recv_frame, sizeof(recv_frame)) >= 0)
+			// Source evidence must come from a complete actual eight-byte frame;
+			// never checksum leftover bytes after a short/invalid socket read.
+			if (read(can_socket_, &recv_frame, sizeof(recv_frame)) == sizeof(recv_frame)
+				&& recv_frame.can_dlc == 8)
 			{
 				switch (recv_frame.can_id)
 				{
@@ -233,6 +239,10 @@ whether the can line is connected correctly, and whether the chassis is powered 
 					if (crc == recv_frame.data[7])
 					{
 						chassis_info_msg.header.stamp = node_->get_clock()->now();
+						std_msgs::msg::Header ctrl_source;
+						ctrl_source.stamp = chassis_info_msg.header.stamp;
+						ctrl_source.frame_id = "yhs_ctrl_feedback";
+						ctrl_source_pub_->publish(ctrl_source);
 						chassis_info_msg.ctrl_fb = msg;
 						chassis_info_fb_publisher_->publish(chassis_info_msg);
 						publish_odom(msg.ctrl_fb_linear, msg.ctrl_fb_angular / 180 * 3.14);
@@ -306,6 +316,10 @@ whether the can line is connected correctly, and whether the chassis is powered 
 					if (crc == recv_frame.data[7])
 					{
 						chassis_info_msg.io_fb = msg;
+						std_msgs::msg::Header io_source;
+						io_source.stamp = node_->get_clock()->now();
+						io_source.frame_id = "yhs_io_feedback";
+						io_source_pub_->publish(io_source);
 					}
 
 					break;
@@ -356,6 +370,10 @@ whether the can line is connected correctly, and whether the chassis is powered 
 					if (crc == recv_frame.data[7])
 					{
 						chassis_info_msg.bms_flag_fb = msg;
+						std_msgs::msg::Header bms_flag_source;
+						bms_flag_source.stamp = node_->get_clock()->now();
+						bms_flag_source.frame_id = "yhs_bms_flag_feedback";
+						bms_flag_source_pub_->publish(bms_flag_source);
 					}
 
 					break;

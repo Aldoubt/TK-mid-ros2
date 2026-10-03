@@ -19,6 +19,7 @@
 #include "geometry_msgs/msg/twist_with_covariance.hpp"
 #include "tf2/LinearMath/Quaternion.h"
 #include "nav_msgs/msg/odometry.hpp"
+#include "std_msgs/msg/header.hpp"
 
 #include "yhs_can_interfaces/msg/io_cmd.hpp"
 #include "yhs_can_interfaces/msg/ctrl_cmd.hpp"
@@ -57,6 +58,10 @@ namespace yhs
 
     rclcpp::Publisher<yhs_can_interfaces::msg::ChassisInfoFb>::SharedPtr chassis_info_fb_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+    // Independent evidence: a new CTRL frame cannot refresh cached IO state.
+    rclcpp::Publisher<std_msgs::msg::Header>::SharedPtr ctrl_source_pub_;
+    rclcpp::Publisher<std_msgs::msg::Header>::SharedPtr io_source_pub_;
+    rclcpp::Publisher<std_msgs::msg::Header>::SharedPtr bms_flag_source_pub_;
 
     void io_cmd_callback(const yhs_can_interfaces::msg::IoCmd::SharedPtr io_cmd_msg);
 
